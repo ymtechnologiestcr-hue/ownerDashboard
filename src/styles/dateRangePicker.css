@@ -1,0 +1,56 @@
+.date-range-picker {
+  display: flex;
+  gap: 20px;
+  padding: 0;
+  padding-bottom: 20px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-input-group label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.date-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.date-input:hover {
+  border-color: #4a90e2;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+@media (max-width: 768px) {
+  .date-range-picker {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .date-input-group {
+    width: 100%;
+  }
+
+  .date-input {
+    width: 100%;
+  }
+}
