@@ -19,7 +19,6 @@ import {
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AddIcon from "@mui/icons-material/Add";
 import UpdateIcon from "@mui/icons-material/SystemUpdateAlt";
-import HistoryIcon from "@mui/icons-material/History";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import axios from "../utils/axiosInstance";
