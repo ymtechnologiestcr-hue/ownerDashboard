@@ -16,6 +16,11 @@ export type OwnerDashboardData = {
       commercial: number;
       total: number;
     };
+    systemStock?: {
+      domestic: number;
+      commercial: number;
+      total: number;
+    };
     empty?: {
       domestic: number;
       commercial: number;

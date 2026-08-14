@@ -33,6 +33,7 @@ type DashboardState = {
   cylindersDelivered: number;
   cashPendingWithDrivers: number;
   stock: { domestic: number; commercial: number; total: number };
+  systemStock: { domestic: number; commercial: number; total: number };
   empty: { domestic: number; commercial: number; total: number };
   totalExpenses: number;
   paymentSummary: {
@@ -51,6 +52,7 @@ const initialDashboardState: DashboardState = {
   cylindersDelivered: 0,
   cashPendingWithDrivers: 0,
   stock: { domestic: 0, commercial: 0, total: 0 },
+  systemStock: { domestic: 0, commercial: 0, total: 0 },
   empty: { domestic: 0, commercial: 0, total: 0 },
   totalExpenses: 0,
   paymentSummary: {
@@ -105,6 +107,11 @@ const Dashboard = () => {
             domestic: Number(data.stock?.domestic || 0),
             commercial: Number(data.stock?.commercial || 0),
             total: Number(data.stock?.total || 0),
+          },
+          systemStock: {
+            domestic: Number(data.systemStock?.domestic || 0),
+            commercial: Number(data.systemStock?.commercial || 0),
+            total: Number(data.systemStock?.total || 0),
           },
           empty: {
             domestic: Number(data.empty?.domestic || 0),
@@ -172,7 +179,6 @@ const Dashboard = () => {
           month: "long",
           day: "numeric",
         })}`;
-
 
   return (
     <div className="dashboard-page">
@@ -280,7 +286,10 @@ const Dashboard = () => {
             </div>
 
             {/* Card 3: Empty Cylinders */}
-            <div className="dashboard-card clickable" onClick={() => navigate("/stocks")}>
+            <div
+              className="dashboard-card clickable"
+              onClick={() => navigate("/stocks")}
+            >
               <div className="card-icon blue-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -385,6 +394,32 @@ const Dashboard = () => {
                   </span>
                 </span>
               </div>
+            </div>
+
+            {/* Card: System Stock Available */}
+            <div
+              className="dashboard-card clickable"
+              onClick={() => navigate("/stocks")}
+            >
+              <div className="card-icon purple-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+              </div>
+              <p className="card-label">System Stock Available</p>
+              <h2 className="card-value">{dashboardData.systemStock.total}</h2>
             </div>
 
             {/* Card 6: Today's Expenses */}
