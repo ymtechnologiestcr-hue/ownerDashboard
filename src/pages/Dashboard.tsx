@@ -33,7 +33,13 @@ type DashboardState = {
   cylindersDelivered: number;
   cashPendingWithDrivers: number;
   stock: { domestic: number; commercial: number; total: number };
-  systemStock: { domestic: number; commercial: number; total: number };
+  systemStock: {
+    domestic: number;
+    commercial: number;
+    total: number;
+    godownStock: { domestic: number; commercial: number; total: number };
+    otpSent: { domestic: number; commercial: number; total: number };
+  };
   empty: { domestic: number; commercial: number; total: number };
   totalExpenses: number;
   paymentSummary: {
@@ -52,7 +58,13 @@ const initialDashboardState: DashboardState = {
   cylindersDelivered: 0,
   cashPendingWithDrivers: 0,
   stock: { domestic: 0, commercial: 0, total: 0 },
-  systemStock: { domestic: 0, commercial: 0, total: 0 },
+  systemStock: {
+    domestic: 0,
+    commercial: 0,
+    total: 0,
+    godownStock: { domestic: 0, commercial: 0, total: 0 },
+    otpSent: { domestic: 0, commercial: 0, total: 0 },
+  },
   empty: { domestic: 0, commercial: 0, total: 0 },
   totalExpenses: 0,
   paymentSummary: {
@@ -112,6 +124,18 @@ const Dashboard = () => {
             domestic: Number(data.systemStock?.domestic || 0),
             commercial: Number(data.systemStock?.commercial || 0),
             total: Number(data.systemStock?.total || 0),
+            godownStock: {
+              domestic: Number(data.systemStock?.godownStock?.domestic || 0),
+              commercial: Number(
+                data.systemStock?.godownStock?.commercial || 0,
+              ),
+              total: Number(data.systemStock?.godownStock?.total || 0),
+            },
+            otpSent: {
+              domestic: Number(data.systemStock?.otpSent?.domestic || 0),
+              commercial: Number(data.systemStock?.otpSent?.commercial || 0),
+              total: Number(data.systemStock?.otpSent?.total || 0),
+            },
           },
           empty: {
             domestic: Number(data.empty?.domestic || 0),
@@ -420,6 +444,20 @@ const Dashboard = () => {
               </div>
               <p className="card-label">System Stock Available</p>
               <h2 className="card-value">{dashboardData.systemStock.total}</h2>
+              <div className="card-breakdown">
+                <span className="breakdown-item">
+                  Godown:{" "}
+                  <span className="amount">
+                    {dashboardData.systemStock.godownStock.domestic}
+                  </span>
+                </span>
+                <span className="breakdown-item">
+                  OTP to IOC:{" "}
+                  <span className="amount">
+                    {dashboardData.systemStock.otpSent.domestic}
+                  </span>
+                </span>
+              </div>
             </div>
 
             {/* Card 6: Today's Expenses */}
