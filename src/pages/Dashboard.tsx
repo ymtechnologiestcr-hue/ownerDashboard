@@ -443,7 +443,9 @@ const Dashboard = () => {
                 </svg>
               </div>
               <p className="card-label">System Stock Available</p>
-              <h2 className="card-value">{dashboardData.systemStock.total}</h2>
+              <h2 className="card-value">
+                {dashboardData.systemStock.domestic}
+              </h2>
               <div className="card-breakdown">
                 <span className="breakdown-item">
                   Godown:{" "}
