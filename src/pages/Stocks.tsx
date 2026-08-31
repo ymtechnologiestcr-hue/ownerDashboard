@@ -187,14 +187,12 @@ const fetchStockItems = async (
 
 const fetchStockItemContext = async (
   itemId: number,
-  stockAreaId: number,
 ): Promise<StockItemContextResponse["data"]> => {
   const res = await axios.get<StockItemContextResponse>(
     "/owner/stocks/item-details",
     {
       params: {
         itemId,
-        stockAreaId,
       },
     },
   );
@@ -221,7 +219,6 @@ const createItemForCategory = async (categoryId: number, itemName: string) => {
 };
 
 const saveStockEntry = async (payload: {
-  stockAreaId: number;
   itemId: number;
   quantity: number;
   price: number;
@@ -393,13 +390,12 @@ export default function Stocks() {
   }, [isAddStockOpen, itemSearch, selectedCategory]);
 
   useEffect(() => {
-    const stockAreaNumericId = Number(modalStockAreaId || 0);
-    if (!isAddStockOpen || !selectedItem || !stockAreaNumericId) {
+    if (!isAddStockOpen || !selectedItem) {
       return;
     }
 
     setIsContextLoading(true);
-    fetchStockItemContext(selectedItem.id, stockAreaNumericId)
+    fetchStockItemContext(selectedItem.id)
       .then((ctx) => {
         setModalQuantity(ctx.quantity == null ? "" : String(ctx.quantity));
         setModalPrice(ctx.price == null ? "" : String(ctx.price));
@@ -409,7 +405,7 @@ export default function Stocks() {
         setModalPrice("");
       })
       .finally(() => setIsContextLoading(false));
-  }, [isAddStockOpen, modalStockAreaId, selectedItem]);
+  }, [isAddStockOpen, selectedItem]);
 
   const handleSaveNewCategoryWithItem = async () => {
     const categoryName = newCategoryName.trim();
@@ -504,7 +500,6 @@ export default function Stocks() {
     setModalError("");
     setModalSuccess("");
 
-    const stockAreaId = Number(modalStockAreaId || 0);
     const quantity = Number(modalQuantity);
     const price = Number(modalPrice);
 
@@ -529,7 +524,6 @@ export default function Stocks() {
     setIsModalSaving(true);
     try {
       await saveStockEntry({
-        stockAreaId,
         itemId: selectedItem.id,
         quantity,
         price,
@@ -1678,29 +1672,6 @@ export default function Stocks() {
           <Divider sx={{ my: 1.5 }} />
 
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-            <Box>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-              >
-                Location
-              </Typography>
-              <TextField
-                select
-                size="small"
-                fullWidth
-                value={modalStockAreaId}
-                onChange={(e) => setModalStockAreaId(e.target.value)}
-                sx={{ mt: 0.4 }}
-              >
-                {stockAreas.map((area) => (
-                  <MenuItem key={area.id} value={String(area.id)}>
-                    {area.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
             <Box>
               <Typography
                 variant="caption"
