@@ -25,6 +25,11 @@ export type OwnerDashboardData = {
         commercial: number;
         total: number;
       };
+      allocatedStock?: {
+        domestic: number;
+        commercial: number;
+        total: number;
+      };
       otpSent?: {
         domestic: number;
         commercial: number;

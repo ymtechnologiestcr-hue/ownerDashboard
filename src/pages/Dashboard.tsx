@@ -38,6 +38,7 @@ type DashboardState = {
     commercial: number;
     total: number;
     godownStock: { domestic: number; commercial: number; total: number };
+    allocatedStock: { domestic: number; commercial: number; total: number };
     otpSent: { domestic: number; commercial: number; total: number };
   };
   empty: { domestic: number; commercial: number; total: number };
@@ -63,6 +64,7 @@ const initialDashboardState: DashboardState = {
     commercial: 0,
     total: 0,
     godownStock: { domestic: 0, commercial: 0, total: 0 },
+    allocatedStock: { domestic: 0, commercial: 0, total: 0 },
     otpSent: { domestic: 0, commercial: 0, total: 0 },
   },
   empty: { domestic: 0, commercial: 0, total: 0 },
@@ -130,6 +132,13 @@ const Dashboard = () => {
                 data.systemStock?.godownStock?.commercial || 0,
               ),
               total: Number(data.systemStock?.godownStock?.total || 0),
+            },
+            allocatedStock: {
+              domestic: Number(data.systemStock?.allocatedStock?.domestic || 0),
+              commercial: Number(
+                data.systemStock?.allocatedStock?.commercial || 0,
+              ),
+              total: Number(data.systemStock?.allocatedStock?.total || 0),
             },
             otpSent: {
               domestic: Number(data.systemStock?.otpSent?.domestic || 0),
@@ -444,13 +453,16 @@ const Dashboard = () => {
               </div>
               <p className="card-label">System Stock Available</p>
               <h2 className="card-value">
-                {dashboardData.systemStock.domestic}
+                {dashboardData.systemStock.godownStock.domestic +
+                  dashboardData.systemStock.allocatedStock.domestic -
+                  dashboardData.systemStock.otpSent.domestic}
               </h2>
               <div className="card-breakdown">
                 <span className="breakdown-item">
-                  Godown:{" "}
+                  Domestic Total Stock:{" "}
                   <span className="amount">
-                    {dashboardData.systemStock.godownStock.domestic}
+                    {dashboardData.systemStock.godownStock.domestic +
+                      dashboardData.systemStock.allocatedStock.domestic}
                   </span>
                 </span>
                 <span className="breakdown-item">
