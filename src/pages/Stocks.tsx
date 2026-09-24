@@ -15,10 +15,14 @@ import {
   DialogActions,
   Autocomplete,
   Divider,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AddIcon from "@mui/icons-material/Add";
 import UpdateIcon from "@mui/icons-material/SystemUpdateAlt";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import axios from "../utils/axiosInstance";
@@ -33,6 +37,11 @@ type StockSummary = {
 
 type StockRow = {
   product_id: number;
+  product_name?: string;
+  product_type?: "DOMESTIC" | "COMMERCIAL";
+  product_price?: number | null;
+  category_id?: number | null;
+  category_name?: string;
   category: string;
   opening: number;
   sales: number;
@@ -106,6 +115,7 @@ type StockItemContextResponse = {
   success: boolean;
   data: {
     quantity: number | null;
+    systemQuantity: number | null;
     price: number | null;
     hasExistingData: boolean;
   };
@@ -221,10 +231,31 @@ const createItemForCategory = async (categoryId: number, itemName: string) => {
 const saveStockEntry = async (payload: {
   itemId: number;
   quantity: number;
+  systemQuantity: number;
   price: number;
   note: string;
 }) => {
   const res = await axios.post("/owner/stocks/entries", payload);
+  return res.data;
+};
+
+const updateStockProduct = async (
+  productId: number,
+  payload: {
+    name: string;
+    type: "DOMESTIC" | "COMMERCIAL";
+    categoryName?: string;
+    price?: number | null;
+    openingStock?: number | null;
+    systemStock?: number | null;
+  },
+) => {
+  const res = await axios.put(`/owner/stocks/products/${productId}`, payload);
+  return res.data;
+};
+
+const deleteStockProduct = async (productId: number) => {
+  const res = await axios.delete(`/owner/stocks/products/${productId}`);
   return res.data;
 };
 
@@ -262,6 +293,7 @@ export default function Stocks() {
   const [itemSearch, setItemSearch] = useState("");
   const [modalStockAreaId, setModalStockAreaId] = useState("");
   const [modalQuantity, setModalQuantity] = useState("");
+  const [modalSystemStock, setModalSystemStock] = useState("");
   const [modalPrice, setModalPrice] = useState("");
   const [modalNote, setModalNote] = useState("");
   const [modalError, setModalError] = useState("");
@@ -275,6 +307,20 @@ export default function Stocks() {
   const [isItemsLoading, setIsItemsLoading] = useState(false);
   const [isContextLoading, setIsContextLoading] = useState(false);
   const [isModalSaving, setIsModalSaving] = useState(false);
+
+  const [editingProduct, setEditingProduct] = useState<StockRow | null>(null);
+  const [editProductName, setEditProductName] = useState("");
+  const [editCategoryName, setEditCategoryName] = useState("");
+  const [editProductType, setEditProductType] = useState<"DOMESTIC" | "COMMERCIAL">("DOMESTIC");
+  const [editPrice, setEditPrice] = useState("");
+  const [editOpeningStock, setEditOpeningStock] = useState("");
+  const [editSystemStock, setEditSystemStock] = useState("");
+  const [isEditSaving, setIsEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const [deletingProduct, setDeletingProduct] = useState<StockRow | null>(null);
+  const [isDeleteSaving, setIsDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [isUpdatePriceOpen, setIsUpdatePriceOpen] = useState(false);
   const [updatePriceRows, setUpdatePriceRows] = useState<UpdatePriceFormRow[]>(
@@ -318,6 +364,7 @@ export default function Stocks() {
     setCategorySearch("");
     setItemSearch("");
     setModalQuantity("");
+    setModalSystemStock("");
     setModalPrice("");
     setModalNote("");
     setModalError("");
@@ -398,10 +445,12 @@ export default function Stocks() {
     fetchStockItemContext(selectedItem.id)
       .then((ctx) => {
         setModalQuantity(ctx.quantity == null ? "" : String(ctx.quantity));
+        setModalSystemStock(ctx.systemQuantity == null ? "" : String(ctx.systemQuantity));
         setModalPrice(ctx.price == null ? "" : String(ctx.price));
       })
       .catch(() => {
         setModalQuantity("");
+        setModalSystemStock("");
         setModalPrice("");
       })
       .finally(() => setIsContextLoading(false));
@@ -501,6 +550,7 @@ export default function Stocks() {
     setModalSuccess("");
 
     const quantity = Number(modalQuantity);
+    const systemStock = modalSystemStock !== "" ? Number(modalSystemStock) : 0;
     const price = Number(modalPrice);
 
     if (!selectedCategory) {
@@ -513,7 +563,11 @@ export default function Stocks() {
     }
 
     if (!Number.isFinite(quantity) || quantity < 0) {
-      setModalError("Quantity must be a valid non-negative number.");
+      setModalError("Physical Quantity must be a valid non-negative number.");
+      return;
+    }
+    if (!Number.isFinite(systemStock) || systemStock < 0) {
+      setModalError("System Stock must be a valid non-negative number.");
       return;
     }
     if (!Number.isFinite(price) || price < 0) {
@@ -526,6 +580,7 @@ export default function Stocks() {
       await saveStockEntry({
         itemId: selectedItem.id,
         quantity,
+        systemQuantity: systemStock,
         price,
         note: modalNote,
       });
@@ -539,6 +594,77 @@ export default function Stocks() {
       setModalError(message);
     } finally {
       setIsModalSaving(false);
+    }
+  };
+
+  const handleOpenEditProduct = (row: StockRow) => {
+    setEditingProduct(row);
+    setEditProductName(row.product_name || row.category.split(" - ")[0] || "");
+    setEditCategoryName(row.category_name || (row.product_type === "COMMERCIAL" ? "Commercial" : "Domestic cylinder"));
+    setEditProductType(row.product_type || (row.category.toLowerCase().includes("commercial") ? "COMMERCIAL" : "DOMESTIC"));
+    setEditPrice(row.product_price == null ? "" : String(row.product_price));
+    setEditOpeningStock(row.opening != null ? String(row.opening) : "");
+    setEditSystemStock(row.systemStock != null ? String(row.systemStock) : "");
+    setEditError("");
+  };
+
+  const handleCloseEditProduct = () => {
+    setEditingProduct(null);
+    setEditError("");
+  };
+
+  const handleSaveEditProduct = async () => {
+    if (!editingProduct) return;
+    if (!editProductName.trim()) {
+      setEditError("Product name is required.");
+      return;
+    }
+    setEditError("");
+    setIsEditSaving(true);
+    try {
+      await updateStockProduct(editingProduct.product_id, {
+        name: editProductName.trim(),
+        type: editProductType,
+        categoryName: editCategoryName.trim(),
+        price: editPrice !== "" ? Number(editPrice) : null,
+        openingStock: editOpeningStock !== "" ? Number(editOpeningStock) : null,
+        systemStock: editSystemStock !== "" ? Number(editSystemStock) : null,
+      });
+      handleCloseEditProduct();
+      await queryClient.invalidateQueries({ queryKey: ["stocks-dashboard"] });
+    } catch (err: unknown) {
+      const resData = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+      const msg = resData?.message || resData?.error || "Failed to update category/product.";
+      setEditError(msg);
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
+  const handleOpenDeleteProduct = (row: StockRow) => {
+    setDeletingProduct(row);
+    setDeleteError("");
+  };
+
+  const handleCloseDeleteProduct = () => {
+    setDeletingProduct(null);
+    setDeleteError("");
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    setDeleteError("");
+    setIsDeleteSaving(true);
+    try {
+      await deleteStockProduct(deletingProduct.product_id);
+      handleCloseDeleteProduct();
+      await queryClient.invalidateQueries({ queryKey: ["stocks-dashboard"] });
+    } catch (err: unknown) {
+      const resData = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+      const msg = resData?.message || resData?.error || "Failed to delete category/product.";
+      setDeleteError(msg);
+    } finally {
+      setIsDeleteSaving(false);
     }
   };
 
@@ -898,139 +1024,173 @@ export default function Stocks() {
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              display: "flex",
-              px: 2,
-              py: 1.5,
-              color: "text.secondary",
-              fontWeight: 600,
-              fontSize: "14px",
-              lineHeight: "20px",
-              borderBottom: "1px solid #e5e7eb",
-            }}
-          >
-            <Box flex={1.7}>Category</Box>
-            <Box flex={1} textAlign="center">
-              Opening
-            </Box>
-            <Box flex={1} textAlign="center">
-              Sales
-            </Box>
-            <Box flex={1.2} textAlign="center">
-              Sales Return
-            </Box>
-            <Box flex={1} textAlign="center">
-              Purchase
-            </Box>
-            <Box flex={1.4} textAlign="center">
-              Purchase Return
-            </Box>
-            <Box flex={1.2} textAlign="center">
-              Defective
-            </Box>
-            <Box flex={1.2} textAlign="center">
-              System Stock
-            </Box>
-            <Box flex={1.3} textAlign="center">
-              Closing Stock
-            </Box>
-            <Box flex={1.6} textAlign="center">
-              Total Empty Cylinder
-            </Box>
-          </Box>
+          <Box sx={{ overflowX: "auto" }}>
+            <Box sx={{ minWidth: 1050 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  px: 2,
+                  py: 1.5,
+                  color: "text.secondary",
+                  fontWeight: 600,
+                  fontSize: "14px",
+                  lineHeight: "20px",
+                  borderBottom: "1px solid #e5e7eb",
+                }}
+              >
+                <Box flex={1.7}>Category</Box>
+                <Box flex={1} textAlign="center">
+                  Opening
+                </Box>
+                <Box flex={1} textAlign="center">
+                  Sales
+                </Box>
+                <Box flex={1.2} textAlign="center">
+                  Sales Return
+                </Box>
+                <Box flex={1} textAlign="center">
+                  Purchase
+                </Box>
+                <Box flex={1.4} textAlign="center">
+                  Purchase Return
+                </Box>
+                <Box flex={1.2} textAlign="center">
+                  Defective
+                </Box>
+                <Box flex={1.2} textAlign="center">
+                  System Stock
+                </Box>
+                <Box flex={1.3} textAlign="center">
+                  Closing Stock
+                </Box>
+                <Box flex={1.6} textAlign="center">
+                  Total Empty Cylinder
+                </Box>
+                <Box flex={1.1} textAlign="center">
+                  Actions
+                </Box>
+              </Box>
 
-          <Box
-            ref={parentRef}
-            sx={{
-              height: 320,
-              overflow: "auto",
-              position: "relative",
-            }}
-          >
-            <Box
-              sx={{
-                height: rowVirtualizer.getTotalSize(),
-                position: "relative",
-              }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const row = stockDetails[virtualRow.index];
-                if (!row) return null;
+              <Box
+                ref={parentRef}
+                sx={{
+                  height: 320,
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  position: "relative",
+                }}
+              >
+                <Box
+                  sx={{
+                    height: rowVirtualizer.getTotalSize(),
+                    position: "relative",
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = stockDetails[virtualRow.index];
+                    if (!row) return null;
 
-                if (
-                  virtualRow.index >= stockDetails.length - 2 &&
-                  hasNextPage &&
-                  !isFetchingNextPage
-                ) {
-                  fetchNextPage();
-                }
+                    if (
+                      virtualRow.index >= stockDetails.length - 2 &&
+                      hasNextPage &&
+                      !isFetchingNextPage
+                    ) {
+                      fetchNextPage();
+                    }
 
-                return (
-                  <Box
-                    key={virtualRow.key}
-                    sx={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      width: "100%",
-                      height: virtualRow.size,
-                      transform: `translateY(${virtualRow.start}px)`,
-                      display: "flex",
-                      px: 2,
-                      alignItems: "center",
-                      fontSize: "14px",
-                      lineHeight: "20px",
-                      borderBottom: "1px solid #f1f5f9",
-                      bgcolor: "white",
-                    }}
-                  >
-                    <Box flex={1.7} fontWeight={500}>
-                      {row.category}
-                    </Box>
-                    <Box flex={1} textAlign="center">
-                      {row.opening}
-                    </Box>
-                    <Box flex={1} textAlign="center" sx={{ color: "red" }}>
-                      {row.sales}
-                    </Box>
-                    <Box flex={1.2} textAlign="center" sx={{ color: "green" }}>
-                      {row.salesReturn}
-                    </Box>
-                    <Box flex={1} textAlign="center" sx={{ color: "green" }}>
-                      {row.purchase}
-                    </Box>
-                    <Box flex={1.4} textAlign="center" sx={{ color: "red" }}>
-                      {row.purchaseReturn}
-                    </Box>
-                    <Box
-                      flex={1.2}
-                      textAlign="center"
-                      sx={{ color: "#f97316" }}
-                    >
-                      {row.defective}
-                    </Box>
-                    <Box flex={1.2} textAlign="center" fontWeight={600}>
-                      {row.systemStock}
-                    </Box>
-                    <Box
-                      flex={1.3}
-                      textAlign="center"
-                      fontWeight={600}
-                      sx={{ color: "#2463eb" }}
-                    >
-                      {row.closingStock}
-                    </Box>
-                    <Box
-                      flex={1.6}
-                      textAlign="center"
-                      sx={{ color: "#f97316" }}
-                    >
-                      {row.emptyCylinders}
-                    </Box>
-                  </Box>
-                );
-              })}
+                    return (
+                      <Box
+                        key={virtualRow.key}
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: virtualRow.size,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          display: "flex",
+                          px: 2,
+                          alignItems: "center",
+                          fontSize: "14px",
+                          lineHeight: "20px",
+                          borderBottom: "1px solid #f1f5f9",
+                          bgcolor: "white",
+                        }}
+                      >
+                        <Box flex={1.7} fontWeight={500}>
+                          {row.category}
+                        </Box>
+                        <Box flex={1} textAlign="center">
+                          {row.opening}
+                        </Box>
+                        <Box flex={1} textAlign="center" sx={{ color: "red" }}>
+                          {row.sales}
+                        </Box>
+                        <Box flex={1.2} textAlign="center" sx={{ color: "green" }}>
+                          {row.salesReturn}
+                        </Box>
+                        <Box flex={1} textAlign="center" sx={{ color: "green" }}>
+                          {row.purchase}
+                        </Box>
+                        <Box flex={1.4} textAlign="center" sx={{ color: "red" }}>
+                          {row.purchaseReturn}
+                        </Box>
+                        <Box
+                          flex={1.2}
+                          textAlign="center"
+                          sx={{ color: "#f97316" }}
+                        >
+                          {row.defective}
+                        </Box>
+                        <Box flex={1.2} textAlign="center" fontWeight={600}>
+                          {row.systemStock}
+                        </Box>
+                        <Box
+                          flex={1.3}
+                          textAlign="center"
+                          fontWeight={600}
+                          sx={{ color: "#2463eb" }}
+                        >
+                          {row.closingStock}
+                        </Box>
+                        <Box
+                          flex={1.6}
+                          textAlign="center"
+                          sx={{ color: "#f97316" }}
+                        >
+                          {row.emptyCylinders}
+                        </Box>
+                        <Box
+                          flex={1.1}
+                          display="flex"
+                          justifyContent="center"
+                          alignItems="center"
+                          gap={0.5}
+                        >
+                          <Tooltip title="Edit Category / Product">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleOpenEditProduct(row)}
+                            >
+                              <EditOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Category / Product">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleOpenDeleteProduct(row)}
+                            >
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
             </Box>
           </Box>
 
@@ -1678,7 +1838,7 @@ export default function Stocks() {
                 fontWeight={700}
                 color="text.secondary"
               >
-                Quantity
+                Physical Quantity
               </Typography>
               <TextField
                 size="small"
@@ -1689,6 +1849,33 @@ export default function Stocks() {
                 sx={{ mt: 0.4 }}
               />
             </Box>
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+              >
+                System Stock
+              </Typography>
+              <TextField
+                size="small"
+                type="number"
+                fullWidth
+                value={modalSystemStock}
+                onChange={(e) => setModalSystemStock(e.target.value)}
+                sx={{ mt: 0.4 }}
+              />
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 2,
+              mt: 1.5,
+            }}
+          >
             <Box>
               <Typography
                 variant="caption"
@@ -1766,6 +1953,163 @@ export default function Stocks() {
             disabled={isModalSaving}
           >
             {isModalSaving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingProduct)}
+        onClose={handleCloseEditProduct}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Edit Category / Product
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Category Name
+                </Typography>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={editCategoryName}
+                  onChange={(e) => setEditCategoryName(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                />
+              </Box>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Item / Product Name
+                </Typography>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={editProductName}
+                  onChange={(e) => setEditProductName(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Type
+                </Typography>
+                <TextField
+                  select
+                  size="small"
+                  fullWidth
+                  value={editProductType}
+                  onChange={(e) => setEditProductType(e.target.value)}
+                  SelectProps={{ native: true }}
+                  sx={{ mt: 0.4 }}
+                >
+                  <option value="DOMESTIC">DOMESTIC</option>
+                  <option value="COMMERCIAL">COMMERCIAL</option>
+                </TextField>
+              </Box>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Price per unit (₹)
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  Physical Opening Stock
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={editOpeningStock}
+                  onChange={(e) => setEditOpeningStock(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                />
+              </Box>
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                  System Stock
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={editSystemStock}
+                  onChange={(e) => setEditSystemStock(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                />
+              </Box>
+            </Box>
+
+            {editError && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                {editError}
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={handleCloseEditProduct}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveEditProduct}
+            disabled={isEditSaving}
+          >
+            {isEditSaving ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deletingProduct)}
+        onClose={handleCloseDeleteProduct}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Delete Category / Product
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            Are you sure you want to delete{" "}
+            <strong>
+              {deletingProduct?.product_name || deletingProduct?.category}
+            </strong>
+            ? This action cannot be undone.
+          </Typography>
+          {deleteError && (
+            <Typography variant="caption" color="error" sx={{ mt: 1.5, display: "block" }}>
+              {deleteError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={handleCloseDeleteProduct} disabled={isDeleteSaving}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteProduct}
+            disabled={isDeleteSaving}
+          >
+            {isDeleteSaving ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
