@@ -2005,7 +2005,9 @@ export default function Stocks() {
                   size="small"
                   fullWidth
                   value={editProductType}
-                  onChange={(e) => setEditProductType(e.target.value)}
+                  onChange={(e) =>
+                    setEditProductType(e.target.value as "DOMESTIC" | "COMMERCIAL")
+                  }
                   SelectProps={{ native: true }}
                   sx={{ mt: 0.4 }}
                 >
