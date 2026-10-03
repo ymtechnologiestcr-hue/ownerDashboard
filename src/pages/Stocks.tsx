@@ -45,11 +45,14 @@ type StockRow = {
   category: string;
   opening: number;
   sales: number;
-  salesReturn: number;
+  salesReturn?: number;
   purchase: number;
-  purchaseReturn: number;
+  purchaseReturn?: number;
   defective: number;
   emptyCylinders: number;
+  emptyStock?: number;
+  emptyPhysical?: number;
+  systemEmptyStock?: number;
   systemStock: number;
   closingStock: number;
 };
@@ -698,7 +701,7 @@ export default function Stocks() {
 
   const progressData = stockDetails.map((item) => {
     const full = Math.max(Number(item.systemStock || 0), 0);
-    const empty = Math.max(Number(item.emptyCylinders || 0), 0);
+    const empty = Math.max(Number(item.emptyPhysical ?? item.emptyCylinders ?? 0), 0);
     const cap = Math.max(full + empty, 1);
 
     return {
@@ -1038,33 +1041,30 @@ export default function Stocks() {
                   borderBottom: "1px solid #e5e7eb",
                 }}
               >
-                <Box flex={1.7}>Category</Box>
-                <Box flex={1} textAlign="center">
+                <Box flex={1.8}>Category</Box>
+                <Box flex={1.1} textAlign="center">
                   Opening
                 </Box>
-                <Box flex={1} textAlign="center">
+                <Box flex={1.1} textAlign="center">
                   Sales
                 </Box>
-                <Box flex={1.2} textAlign="center">
-                  Sales Return
-                </Box>
-                <Box flex={1} textAlign="center">
+                <Box flex={1.1} textAlign="center">
                   Purchase
                 </Box>
-                <Box flex={1.4} textAlign="center">
-                  Purchase Return
-                </Box>
-                <Box flex={1.2} textAlign="center">
+                <Box flex={1.1} textAlign="center">
                   Defective
                 </Box>
-                <Box flex={1.2} textAlign="center">
+                <Box flex={1.3} textAlign="center">
                   System Stock
                 </Box>
                 <Box flex={1.3} textAlign="center">
                   Closing Stock
                 </Box>
-                <Box flex={1.6} textAlign="center">
-                  Total Empty Cylinder
+                <Box flex={1.3} textAlign="center">
+                  Empty Stock
+                </Box>
+                <Box flex={1.3} textAlign="center">
+                  Empty Physical
                 </Box>
                 <Box flex={1.1} textAlign="center">
                   Actions
@@ -1117,32 +1117,26 @@ export default function Stocks() {
                           bgcolor: "white",
                         }}
                       >
-                        <Box flex={1.7} fontWeight={500}>
+                        <Box flex={1.8} fontWeight={500}>
                           {row.category}
                         </Box>
-                        <Box flex={1} textAlign="center">
+                        <Box flex={1.1} textAlign="center">
                           {row.opening}
                         </Box>
-                        <Box flex={1} textAlign="center" sx={{ color: "red" }}>
+                        <Box flex={1.1} textAlign="center" sx={{ color: "red" }}>
                           {row.sales}
                         </Box>
-                        <Box flex={1.2} textAlign="center" sx={{ color: "green" }}>
-                          {row.salesReturn}
-                        </Box>
-                        <Box flex={1} textAlign="center" sx={{ color: "green" }}>
+                        <Box flex={1.1} textAlign="center" sx={{ color: "green" }}>
                           {row.purchase}
                         </Box>
-                        <Box flex={1.4} textAlign="center" sx={{ color: "red" }}>
-                          {row.purchaseReturn}
-                        </Box>
                         <Box
-                          flex={1.2}
+                          flex={1.1}
                           textAlign="center"
                           sx={{ color: "#f97316" }}
                         >
                           {row.defective}
                         </Box>
-                        <Box flex={1.2} textAlign="center" fontWeight={600}>
+                        <Box flex={1.3} textAlign="center" fontWeight={600}>
                           {row.systemStock}
                         </Box>
                         <Box
@@ -1153,12 +1147,16 @@ export default function Stocks() {
                         >
                           {row.closingStock}
                         </Box>
+                        <Box flex={1.3} textAlign="center" fontWeight={600}>
+                          {row.emptyStock ?? row.systemEmptyStock ?? 0}
+                        </Box>
                         <Box
-                          flex={1.6}
+                          flex={1.3}
                           textAlign="center"
+                          fontWeight={600}
                           sx={{ color: "#f97316" }}
                         >
-                          {row.emptyCylinders}
+                          {row.emptyPhysical ?? row.emptyCylinders ?? 0}
                         </Box>
                         <Box
                           flex={1.1}
