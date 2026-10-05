@@ -119,6 +119,10 @@ type StockItemContextResponse = {
   data: {
     quantity: number | null;
     systemQuantity: number | null;
+    emptyQuantity?: number | null;
+    systemEmptyQuantity?: number | null;
+    emptyStock?: number | null;
+    emptyPhysical?: number | null;
     price: number | null;
     hasExistingData: boolean;
   };
@@ -235,6 +239,8 @@ const saveStockEntry = async (payload: {
   itemId: number;
   quantity: number;
   systemQuantity: number;
+  emptyQuantity?: number;
+  systemEmptyQuantity?: number;
   price: number;
   note: string;
 }) => {
@@ -297,6 +303,8 @@ export default function Stocks() {
   const [modalStockAreaId, setModalStockAreaId] = useState("");
   const [modalQuantity, setModalQuantity] = useState("");
   const [modalSystemStock, setModalSystemStock] = useState("");
+  const [modalEmptyQuantity, setModalEmptyQuantity] = useState("");
+  const [modalEmptySystemStock, setModalEmptySystemStock] = useState("");
   const [modalPrice, setModalPrice] = useState("");
   const [modalNote, setModalNote] = useState("");
   const [modalError, setModalError] = useState("");
@@ -368,6 +376,8 @@ export default function Stocks() {
     setItemSearch("");
     setModalQuantity("");
     setModalSystemStock("");
+    setModalEmptyQuantity("");
+    setModalEmptySystemStock("");
     setModalPrice("");
     setModalNote("");
     setModalError("");
@@ -448,12 +458,24 @@ export default function Stocks() {
     fetchStockItemContext(selectedItem.id)
       .then((ctx) => {
         setModalQuantity(ctx.quantity == null ? "" : String(ctx.quantity));
-        setModalSystemStock(ctx.systemQuantity == null ? "" : String(ctx.systemQuantity));
+        setModalSystemStock(
+          ctx.systemQuantity == null ? "" : String(ctx.systemQuantity),
+        );
+        const fetchedEmptyQty = ctx.emptyQuantity ?? ctx.emptyPhysical;
+        setModalEmptyQuantity(
+          fetchedEmptyQty == null ? "" : String(fetchedEmptyQty),
+        );
+        const fetchedEmptySys = ctx.systemEmptyQuantity ?? ctx.emptyStock;
+        setModalEmptySystemStock(
+          fetchedEmptySys == null ? "" : String(fetchedEmptySys),
+        );
         setModalPrice(ctx.price == null ? "" : String(ctx.price));
       })
       .catch(() => {
         setModalQuantity("");
         setModalSystemStock("");
+        setModalEmptyQuantity("");
+        setModalEmptySystemStock("");
         setModalPrice("");
       })
       .finally(() => setIsContextLoading(false));
@@ -554,6 +576,10 @@ export default function Stocks() {
 
     const quantity = Number(modalQuantity);
     const systemStock = modalSystemStock !== "" ? Number(modalSystemStock) : 0;
+    const emptyQuantity =
+      modalEmptyQuantity !== "" ? Number(modalEmptyQuantity) : 0;
+    const emptySystemStock =
+      modalEmptySystemStock !== "" ? Number(modalEmptySystemStock) : 0;
     const price = Number(modalPrice);
 
     if (!selectedCategory) {
@@ -573,6 +599,24 @@ export default function Stocks() {
       setModalError("System Stock must be a valid non-negative number.");
       return;
     }
+    if (
+      modalEmptyQuantity !== "" &&
+      (!Number.isFinite(emptyQuantity) || emptyQuantity < 0)
+    ) {
+      setModalError(
+        "Empty Physical Quantity must be a valid non-negative number.",
+      );
+      return;
+    }
+    if (
+      modalEmptySystemStock !== "" &&
+      (!Number.isFinite(emptySystemStock) || emptySystemStock < 0)
+    ) {
+      setModalError(
+        "Empty System Quantity must be a valid non-negative number.",
+      );
+      return;
+    }
     if (!Number.isFinite(price) || price < 0) {
       setModalError("Price must be a valid non-negative number.");
       return;
@@ -584,6 +628,8 @@ export default function Stocks() {
         itemId: selectedItem.id,
         quantity,
         systemQuantity: systemStock,
+        emptyQuantity,
+        systemEmptyQuantity: emptySystemStock,
         price,
         note: modalNote,
       });
@@ -1861,6 +1907,50 @@ export default function Stocks() {
                 fullWidth
                 value={modalSystemStock}
                 onChange={(e) => setModalSystemStock(e.target.value)}
+                sx={{ mt: 0.4 }}
+              />
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 2,
+              mt: 1.5,
+            }}
+          >
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+              >
+                Empty Physical Quantity
+              </Typography>
+              <TextField
+                size="small"
+                type="number"
+                fullWidth
+                value={modalEmptyQuantity}
+                onChange={(e) => setModalEmptyQuantity(e.target.value)}
+                sx={{ mt: 0.4 }}
+              />
+            </Box>
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+              >
+                Empty System Quantity
+              </Typography>
+              <TextField
+                size="small"
+                type="number"
+                fullWidth
+                value={modalEmptySystemStock}
+                onChange={(e) => setModalEmptySystemStock(e.target.value)}
                 sx={{ mt: 0.4 }}
               />
             </Box>
