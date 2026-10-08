@@ -257,6 +257,10 @@ const updateStockProduct = async (
     price?: number | null;
     openingStock?: number | null;
     systemStock?: number | null;
+    emptyPhysical?: number | null;
+    systemEmptyStock?: number | null;
+    emptyQuantity?: number | null;
+    systemEmptyQuantity?: number | null;
   },
 ) => {
   const res = await axios.put(`/owner/stocks/products/${productId}`, payload);
@@ -322,10 +326,14 @@ export default function Stocks() {
   const [editingProduct, setEditingProduct] = useState<StockRow | null>(null);
   const [editProductName, setEditProductName] = useState("");
   const [editCategoryName, setEditCategoryName] = useState("");
-  const [editProductType, setEditProductType] = useState<"DOMESTIC" | "COMMERCIAL">("DOMESTIC");
+  const [editProductType, setEditProductType] = useState<
+    "DOMESTIC" | "COMMERCIAL"
+  >("DOMESTIC");
   const [editPrice, setEditPrice] = useState("");
   const [editOpeningStock, setEditOpeningStock] = useState("");
   const [editSystemStock, setEditSystemStock] = useState("");
+  const [editEmptyPhysical, setEditEmptyPhysical] = useState("");
+  const [editEmptySystemStock, setEditEmptySystemStock] = useState("");
   const [isEditSaving, setIsEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -649,16 +657,32 @@ export default function Stocks() {
   const handleOpenEditProduct = (row: StockRow) => {
     setEditingProduct(row);
     setEditProductName(row.product_name || row.category.split(" - ")[0] || "");
-    setEditCategoryName(row.category_name || (row.product_type === "COMMERCIAL" ? "Commercial" : "Domestic cylinder"));
-    setEditProductType(row.product_type || (row.category.toLowerCase().includes("commercial") ? "COMMERCIAL" : "DOMESTIC"));
+    setEditCategoryName(
+      row.category_name ||
+        (row.product_type === "COMMERCIAL"
+          ? "Commercial"
+          : "Domestic cylinder"),
+    );
+    setEditProductType(
+      row.product_type ||
+        (row.category.toLowerCase().includes("commercial")
+          ? "COMMERCIAL"
+          : "DOMESTIC"),
+    );
     setEditPrice(row.product_price == null ? "" : String(row.product_price));
     setEditOpeningStock(row.opening != null ? String(row.opening) : "");
     setEditSystemStock(row.systemStock != null ? String(row.systemStock) : "");
+    const emptyPhys = row.emptyPhysical ?? row.emptyCylinders;
+    setEditEmptyPhysical(emptyPhys != null ? String(emptyPhys) : "");
+    const emptySys = row.emptyStock ?? row.systemEmptyStock;
+    setEditEmptySystemStock(emptySys != null ? String(emptySys) : "");
     setEditError("");
   };
 
   const handleCloseEditProduct = () => {
     setEditingProduct(null);
+    setEditEmptyPhysical("");
+    setEditEmptySystemStock("");
     setEditError("");
   };
 
@@ -666,6 +690,26 @@ export default function Stocks() {
     if (!editingProduct) return;
     if (!editProductName.trim()) {
       setEditError("Product name is required.");
+      return;
+    }
+    if (
+      editEmptyPhysical !== "" &&
+      (!Number.isFinite(Number(editEmptyPhysical)) ||
+        Number(editEmptyPhysical) < 0)
+    ) {
+      setEditError(
+        "Empty physical quantity must be a valid non-negative number.",
+      );
+      return;
+    }
+    if (
+      editEmptySystemStock !== "" &&
+      (!Number.isFinite(Number(editEmptySystemStock)) ||
+        Number(editEmptySystemStock) < 0)
+    ) {
+      setEditError(
+        "Empty system quantity must be a valid non-negative number.",
+      );
       return;
     }
     setEditError("");
@@ -678,12 +722,25 @@ export default function Stocks() {
         price: editPrice !== "" ? Number(editPrice) : null,
         openingStock: editOpeningStock !== "" ? Number(editOpeningStock) : null,
         systemStock: editSystemStock !== "" ? Number(editSystemStock) : null,
+        emptyPhysical:
+          editEmptyPhysical !== "" ? Number(editEmptyPhysical) : null,
+        systemEmptyStock:
+          editEmptySystemStock !== "" ? Number(editEmptySystemStock) : null,
+        emptyQuantity:
+          editEmptyPhysical !== "" ? Number(editEmptyPhysical) : null,
+        systemEmptyQuantity:
+          editEmptySystemStock !== "" ? Number(editEmptySystemStock) : null,
       });
       handleCloseEditProduct();
       await queryClient.invalidateQueries({ queryKey: ["stocks-dashboard"] });
     } catch (err: unknown) {
-      const resData = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      const msg = resData?.message || resData?.error || "Failed to update category/product.";
+      const resData = (
+        err as { response?: { data?: { message?: string; error?: string } } }
+      )?.response?.data;
+      const msg =
+        resData?.message ||
+        resData?.error ||
+        "Failed to update category/product.";
       setEditError(msg);
     } finally {
       setIsEditSaving(false);
@@ -709,8 +766,13 @@ export default function Stocks() {
       handleCloseDeleteProduct();
       await queryClient.invalidateQueries({ queryKey: ["stocks-dashboard"] });
     } catch (err: unknown) {
-      const resData = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      const msg = resData?.message || resData?.error || "Failed to delete category/product.";
+      const resData = (
+        err as { response?: { data?: { message?: string; error?: string } } }
+      )?.response?.data;
+      const msg =
+        resData?.message ||
+        resData?.error ||
+        "Failed to delete category/product.";
       setDeleteError(msg);
     } finally {
       setIsDeleteSaving(false);
@@ -747,7 +809,10 @@ export default function Stocks() {
 
   const progressData = stockDetails.map((item) => {
     const full = Math.max(Number(item.systemStock || 0), 0);
-    const empty = Math.max(Number(item.emptyPhysical ?? item.emptyCylinders ?? 0), 0);
+    const empty = Math.max(
+      Number(item.emptyPhysical ?? item.emptyCylinders ?? 0),
+      0,
+    );
     const cap = Math.max(full + empty, 1);
 
     return {
@@ -1107,10 +1172,10 @@ export default function Stocks() {
                   Closing Stock
                 </Box>
                 <Box flex={1.3} textAlign="center">
-                  Empty Stock
+                  Empty System Stock
                 </Box>
                 <Box flex={1.3} textAlign="center">
-                  Empty Physical
+                  Empty Physical Stock
                 </Box>
                 <Box flex={1.1} textAlign="center">
                   Actions
@@ -1169,10 +1234,18 @@ export default function Stocks() {
                         <Box flex={1.1} textAlign="center">
                           {row.opening}
                         </Box>
-                        <Box flex={1.1} textAlign="center" sx={{ color: "red" }}>
+                        <Box
+                          flex={1.1}
+                          textAlign="center"
+                          sx={{ color: "red" }}
+                        >
                           {row.sales}
                         </Box>
-                        <Box flex={1.1} textAlign="center" sx={{ color: "green" }}>
+                        <Box
+                          flex={1.1}
+                          textAlign="center"
+                          sx={{ color: "green" }}
+                        >
                           {row.purchase}
                         </Box>
                         <Box
@@ -2056,9 +2129,15 @@ export default function Stocks() {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+            >
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   Category Name
                 </Typography>
                 <TextField
@@ -2070,7 +2149,11 @@ export default function Stocks() {
                 />
               </Box>
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   Item / Product Name
                 </Typography>
                 <TextField
@@ -2083,9 +2166,15 @@ export default function Stocks() {
               </Box>
             </Box>
 
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+            >
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   Type
                 </Typography>
                 <TextField
@@ -2094,7 +2183,9 @@ export default function Stocks() {
                   fullWidth
                   value={editProductType}
                   onChange={(e) =>
-                    setEditProductType(e.target.value as "DOMESTIC" | "COMMERCIAL")
+                    setEditProductType(
+                      e.target.value as "DOMESTIC" | "COMMERCIAL",
+                    )
                   }
                   SelectProps={{ native: true }}
                   sx={{ mt: 0.4 }}
@@ -2104,7 +2195,11 @@ export default function Stocks() {
                 </TextField>
               </Box>
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   Price per unit (₹)
                 </Typography>
                 <TextField
@@ -2118,9 +2213,15 @@ export default function Stocks() {
               </Box>
             </Box>
 
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+            >
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   Physical Opening Stock
                 </Typography>
                 <TextField
@@ -2133,7 +2234,11 @@ export default function Stocks() {
                 />
               </Box>
               <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
                   System Stock
                 </Typography>
                 <TextField
@@ -2143,6 +2248,47 @@ export default function Stocks() {
                   value={editSystemStock}
                   onChange={(e) => setEditSystemStock(e.target.value)}
                   sx={{ mt: 0.4 }}
+                />
+              </Box>
+            </Box>
+
+            <Box
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}
+            >
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
+                  Physical Empty Cylinders
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={editEmptyPhysical}
+                  onChange={(e) => setEditEmptyPhysical(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                  inputProps={{ min: 0 }}
+                />
+              </Box>
+              <Box>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                >
+                  System Empty Cylinders
+                </Typography>
+                <TextField
+                  size="small"
+                  type="number"
+                  fullWidth
+                  value={editEmptySystemStock}
+                  onChange={(e) => setEditEmptySystemStock(e.target.value)}
+                  sx={{ mt: 0.4 }}
+                  inputProps={{ min: 0 }}
                 />
               </Box>
             </Box>
@@ -2184,7 +2330,11 @@ export default function Stocks() {
             ? This action cannot be undone.
           </Typography>
           {deleteError && (
-            <Typography variant="caption" color="error" sx={{ mt: 1.5, display: "block" }}>
+            <Typography
+              variant="caption"
+              color="error"
+              sx={{ mt: 1.5, display: "block" }}
+            >
               {deleteError}
             </Typography>
           )}
