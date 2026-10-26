@@ -8,6 +8,9 @@ export type AuthUser = {
   phone: string;
   role: string;
   status?: string;
+  agency_id?: number | null;
+  agency_name?: string | null;
+  company_name?: string | null;
 };
 
 type AuthState = {

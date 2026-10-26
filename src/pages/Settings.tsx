@@ -115,6 +115,9 @@ const Settings: React.FC = () => {
       const updatedUser = {
         ...storedUser,
         id: userId,
+        name: form.ownerName,
+        company_name: form.agencyName,
+        agency_name: form.agencyName,
         email: form.email || null,
         phone: form.phone,
       };

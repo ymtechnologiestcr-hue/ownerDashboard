@@ -1,8 +1,81 @@
 import { Box, Typography, InputBase, Avatar } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import NotificationsIcon from "@mui/icons-material/Notifications";
+import { useEffect, useState } from "react";
+import { useAppSelector } from "../app/hooks";
+import axios from "../utils/axiosInstance";
 
 const Header = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  const [fetchedAgencyName, setFetchedAgencyName] = useState<string>("");
+
+  useEffect(() => {
+    // If not already in user state, fetch settings to get agency details
+    const loadAgency = async () => {
+      const stored = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("user") || "null");
+        } catch {
+          return null;
+        }
+      })();
+
+      const agency =
+        user?.agency_name ||
+        user?.company_name ||
+        stored?.agency_name ||
+        stored?.company_name;
+
+      if (agency) {
+        setFetchedAgencyName(agency);
+        return;
+      }
+
+      const uid = user?.id || stored?.id;
+      if (uid) {
+        try {
+          const res = await axios.get(`/users/${uid}/settings`);
+          const data = res.data?.data;
+          const name = data?.agency_name || data?.company_name || "";
+          if (name) {
+            setFetchedAgencyName(name);
+          }
+        } catch {
+          // fallback gracefully
+        }
+      }
+    };
+
+    loadAgency();
+
+    const handleStorageChange = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem("user") || "null");
+        if (stored?.agency_name || stored?.company_name) {
+          setFetchedAgencyName(stored.agency_name || stored.company_name);
+        }
+      } catch {}
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [user]);
+
+  const displayAgencyName =
+    fetchedAgencyName ||
+    user?.agency_name ||
+    user?.company_name ||
+    "Gas Agency";
+
+  const displayName = user?.name || "Owner";
+  const userInitials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "OW";
+
   return (
     <Box
       sx={{
@@ -18,7 +91,7 @@ const Header = () => {
       {/* LEFT */}
       <Box>
         <Typography fontWeight={600}>
-          Shree Ganesh Gas Agency
+          {displayAgencyName}
         </Typography>
         <Typography variant="caption" color="text.secondary">
           Owner Dashboard
@@ -48,13 +121,13 @@ const Header = () => {
         <NotificationsIcon />
 
         <Box sx={{ textAlign: "right" }}>
-          <Typography fontSize={14}>Rajesh Kumar</Typography>
+          <Typography fontSize={14}>{displayName}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Owner
+            {user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : "Owner"}
           </Typography>
         </Box>
 
-        <Avatar sx={{ bgcolor: "#2563eb" }}>RK</Avatar>
+        <Avatar sx={{ bgcolor: "#2563eb" }}>{userInitials}</Avatar>
       </Box>
     </Box>
   );
