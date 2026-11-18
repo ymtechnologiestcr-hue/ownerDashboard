@@ -1,6 +1,8 @@
 import "../styles/login.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import {
   identifyAuthMethodAPI,
@@ -47,6 +49,7 @@ const Login = () => {
   const [step, setStep] = useState<AuthStep>("IDENTIFIER");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState("");
   const [masked, setMasked] = useState("");
   const [availablePassword, setAvailablePassword] = useState(false);
@@ -205,7 +208,10 @@ const Login = () => {
             {availablePassword && (
               <button
                 className="otp-btn"
-                onClick={() => setStep("PASSWORD")}
+                onClick={() => {
+                  setShowPassword(false);
+                  setStep("PASSWORD");
+                }}
                 disabled={loading}
               >
                 Login with Password
@@ -222,17 +228,44 @@ const Login = () => {
         {step === "PASSWORD" && (
           <div className="auth-step">
             <label className="auth-label">Password</label>
-            <input
-              className="auth-input"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter password"
-            />
+            <div className="password-input-wrapper">
+              <input
+                className="auth-input"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handlePasswordLogin();
+                  }
+                }}
+                placeholder="Enter password"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <VisibilityOffOutlinedIcon sx={{ fontSize: 20 }} />
+                ) : (
+                  <VisibilityOutlinedIcon sx={{ fontSize: 20 }} />
+                )}
+              </button>
+            </div>
             <button className="otp-btn" onClick={handlePasswordLogin} disabled={loading}>
               {loading ? "Please wait..." : "Login"}
             </button>
-            <button className="link-btn" onClick={() => setStep("METHOD")} type="button">
+            <button
+              className="link-btn"
+              onClick={() => {
+                setShowPassword(false);
+                setStep("METHOD");
+              }}
+              type="button"
+            >
               Back
             </button>
           </div>

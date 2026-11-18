@@ -257,3 +257,39 @@ export const updateOwnerJobAssignmentUser = (
 export const deleteOwnerJobAssignmentUser = (userId: number) => {
   return axios.delete(`/owner/job-assignment/users/${userId}`);
 };
+
+export type CheckEmailAvailabilityResponse = {
+  success: boolean;
+  available: boolean;
+  conflictType?:
+    | "SAME_ROLE_ACROSS_AGENCIES"
+    | "SAME_ROLE_SAME_AGENCY"
+    | "EMAIL_ALREADY_EXISTS";
+  message: string;
+  existingUser?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    roleLabel: string;
+    agencyId: number;
+    agencyName: string;
+  };
+};
+
+export const checkOwnerJobAssignmentEmailAvailability = (
+  email: string,
+  role?: string,
+  excludeUserId?: number
+) => {
+  return axios.get<CheckEmailAvailabilityResponse>(
+    "/owner/job-assignment/check-email",
+    {
+      params: {
+        email,
+        role,
+        excludeUserId,
+      },
+    }
+  );
+};

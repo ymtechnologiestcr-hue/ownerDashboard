@@ -62,7 +62,6 @@ export default function CashSettlement() {
 
   const fetchDriverSettlements = async () => {
     try {
-      setLoading(true);
       const res = await axios.get("/owner/settlements/driver-settlements", {
         params: { startDate: startDate || undefined, endDate: endDate || undefined },
       });
@@ -72,14 +71,11 @@ export default function CashSettlement() {
       }
     } catch (err) {
       console.error("Fetch driver settlements error:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchCreditSales = async () => {
     try {
-      setLoading(true);
       const res = await axios.get("/owner/settlements/credit-sales", {
         params: { startDate: startDate || undefined, endDate: endDate || undefined },
       });
@@ -89,18 +85,17 @@ export default function CashSettlement() {
       }
     } catch (err) {
       console.error("Fetch credit sales error:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === "driver") {
-      fetchDriverSettlements();
-    } else {
-      fetchCreditSales();
-    }
-  }, [activeTab, startDate, endDate]);
+    const loadAll = async () => {
+      setLoading(true);
+      await Promise.all([fetchDriverSettlements(), fetchCreditSales()]);
+      setLoading(false);
+    };
+    loadAll();
+  }, [startDate, endDate]);
 
   const formatCurrency = (val: number) => `₹${Number(val || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 

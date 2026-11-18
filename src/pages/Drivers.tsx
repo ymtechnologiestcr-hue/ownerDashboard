@@ -21,11 +21,15 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  IconButton,
+  Collapse,
 } from "@mui/material";
 import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import axios from "../utils/axiosInstance";
 import { exportToExcel, exportToPdf } from "../utils/reportExportUtils";
 
@@ -46,6 +50,38 @@ export default function Drivers() {
 
   const [drivers, setDrivers] = useState<any[]>([]);
   const [vehicleHistory, setVehicleHistory] = useState<any[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+
+  const toggleRow = (id: number) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const driversWithDetails = drivers.filter(
+    (d) => (d.deliveries && d.deliveries.length > 0) || (d.inHands && d.inHands.length > 0)
+  );
+
+  const isAllExpanded =
+    driversWithDetails.length > 0 &&
+    driversWithDetails.every((d) => expandedRows[d.id]);
+
+  const handleToggleAll = () => {
+    if (isAllExpanded) {
+      setExpandedRows({});
+    } else {
+      const nextState: Record<number, boolean> = {};
+      driversWithDetails.forEach((d) => {
+        nextState[d.id] = true;
+      });
+      setExpandedRows(nextState);
+    }
+  };
+
+  const driversWithDeliveriesCount = drivers.filter(
+    (d) => (d.totalDelivered || 0) > 0 || (d.deliveries && d.deliveries.length > 0)
+  ).length;
 
   // Edit Vehicle Modal
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -339,152 +375,315 @@ export default function Drivers() {
           <Box p={2}>
             {/* TAB 1: DRIVER MANAGEMENT TABLE REDESIGN */}
             {activeTab === "overview" && (
-              <Table sx={{ minWidth: 700, "& td, & th": { py: 1.5, px: 2 } }}>
-                <TableHead sx={{ bgcolor: "#f1f5f9" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", width: "22%" }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", width: "35%" }}>
-                      Deliveries
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        Item-wise Delivered Qty & System Updated Qty
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", width: "30%" }}>
-                      In Hands
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        Item-wise In-Hand Qty & System Updated Qty
-                      </Typography>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: "#475569", width: "13%", textAlign: "center" }}>
-                      Status
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        Daily Allocation
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {drivers.length === 0 ? (
+              <>
+                {/* Header bar with summary & Expand All / Collapse All */}
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5} px={0.5}>
+                  <Typography variant="body2" color="text.secondary">
+                    Total <strong>{drivers.length}</strong> drivers • <strong style={{ color: "#1d4ed8" }}>{driversWithDeliveriesCount}</strong> with deliveries
+                  </Typography>
+                  {driversWithDetails.length > 0 && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleToggleAll}
+                      startIcon={isAllExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        fontSize: "12px",
+                        py: 0.4,
+                        px: 1.5,
+                        borderColor: "#cbd5e1",
+                        color: "#334155",
+                        "&:hover": { borderColor: "#94a3b8", bgcolor: "#f8fafc" },
+                      }}
+                    >
+                      {isAllExpanded ? "Collapse All Rows" : "Expand All Rows"}
+                    </Button>
+                  )}
+                </Box>
+
+                <Table sx={{ minWidth: 700, "& td, & th": { py: 1.5, px: 2 } }}>
+                  <TableHead sx={{ bgcolor: "#f1f5f9" }}>
                     <TableRow>
-                      <TableCell colSpan={4} align="center" sx={{ py: 4, color: "#64748b" }}>
-                        No driver records found.
+                      <TableCell sx={{ fontWeight: 700, color: "#475569", width: "22%" }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#475569", width: "35%" }}>
+                        Deliveries
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          Item-wise Delivered Qty & System Updated Qty
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#475569", width: "30%" }}>
+                        In Hands
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          Item-wise In-Hand Qty & System Updated Qty
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: "#475569", width: "13%", textAlign: "center" }}>
+                        Status
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          Daily Allocation
+                        </Typography>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    drivers.map((d) => {
-                      const isActive = d.status === "ACTIVE";
+                  </TableHead>
+                  <TableBody>
+                    {drivers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center" sx={{ py: 4, color: "#64748b" }}>
+                          No driver records found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      drivers.map((d) => {
+                        const isActive = d.status === "ACTIVE";
+                        const hasDeliveries = Boolean(d.deliveries && d.deliveries.length > 0);
+                        const hasInHands = Boolean(d.inHands && d.inHands.length > 0);
+                        const hasDetails = hasDeliveries || hasInHands;
+                        const isExpanded = Boolean(expandedRows[d.id]);
 
-                      return (
-                        <TableRow key={d.id} hover sx={{ verticalAlign: "top" }}>
-                          {/* Name */}
-                          <TableCell>
-                            <Typography fontWeight={700} color="#0f172a" fontSize="14px">
-                              {d.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              ID: #{d.id} • {d.phone || "No phone"}
-                            </Typography>
-                          </TableCell>
-
-                          {/* Deliveries: Item-wise */}
-                          <TableCell>
-                            {d.deliveries && d.deliveries.length > 0 ? (
-                              <Box>
-                                <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
-                                  <thead>
-                                    <tr style={{ color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
-                                      <th style={{ textAlign: "left", paddingBottom: "4px" }}>Item Name</th>
-                                      <th style={{ textAlign: "right", paddingBottom: "4px" }}>Delivered</th>
-                                      <th style={{ textAlign: "right", paddingBottom: "4px" }}>System Updated</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {d.deliveries.map((item: any, idx: number) => (
-                                      <tr key={idx} style={{ borderBottom: "1px dashed #f1f5f9" }}>
-                                        <td style={{ padding: "4px 0", fontWeight: 500 }}>{item.itemName}</td>
-                                        <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600 }}>{item.deliveredQty}</td>
-                                        <td style={{ textAlign: "right", padding: "4px 0", color: "#16a34a", fontWeight: 600 }}>
-                                          {item.systemUpdatedQty}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                    <tr style={{ borderTop: "1px solid #cbd5e1", fontWeight: 700 }}>
-                                      <td style={{ paddingTop: "4px" }}>Total</td>
-                                      <td style={{ textAlign: "right", paddingTop: "4px" }}>{d.totalDelivered}</td>
-                                      <td style={{ textAlign: "right", paddingTop: "4px", color: "#16a34a" }}>{d.totalSystemUpdated}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
+                        return (
+                          <TableRow
+                            key={d.id}
+                            hover
+                            sx={{
+                              verticalAlign: "top",
+                              bgcolor: isExpanded ? "#f8fafc" : "inherit",
+                              transition: "background-color 0.2s",
+                            }}
+                          >
+                            {/* Name */}
+                            <TableCell sx={{ verticalAlign: isExpanded ? "top" : "middle" }}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {hasDetails ? (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => toggleRow(d.id)}
+                                    sx={{
+                                      p: 0.5,
+                                      color: isExpanded ? "#2563eb" : "#64748b",
+                                      bgcolor: isExpanded ? "#eff6ff" : "transparent",
+                                      "&:hover": { bgcolor: isExpanded ? "#dbeafe" : "#f1f5f9" },
+                                    }}
+                                    title={isExpanded ? "Collapse item breakdown" : "Expand item breakdown"}
+                                    aria-label={isExpanded ? "Collapse item breakdown" : "Expand item breakdown"}
+                                  >
+                                    {isExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                                  </IconButton>
+                                ) : (
+                                  <Box sx={{ width: 28 }} />
+                                )}
+                                <Box>
+                                  <Typography fontWeight={700} color="#0f172a" fontSize="14px">
+                                    {d.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    ID: #{d.id} • {d.phone || "No phone"}
+                                  </Typography>
+                                </Box>
                               </Box>
-                            ) : (
-                              <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                                No deliveries yet for this period
-                              </Typography>
-                            )}
-                          </TableCell>
+                            </TableCell>
 
-                          {/* In Hands: Item-wise */}
-                          <TableCell>
-                            {d.inHands && d.inHands.length > 0 ? (
-                              <Box>
-                                <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
-                                  <thead>
-                                    <tr style={{ color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
-                                      <th style={{ textAlign: "left", paddingBottom: "4px" }}>Item Name</th>
-                                      <th style={{ textAlign: "right", paddingBottom: "4px" }}>In Hand</th>
-                                      <th style={{ textAlign: "right", paddingBottom: "4px" }}>System In Hand</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {d.inHands.map((item: any, idx: number) => (
-                                      <tr key={idx} style={{ borderBottom: "1px dashed #f1f5f9" }}>
-                                        <td style={{ padding: "4px 0", fontWeight: 500 }}>{item.itemName}</td>
-                                        <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600, color: "#f97316" }}>
-                                          {item.inHandQty}
-                                        </td>
-                                        <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600 }}>
-                                          {item.systemUpdatedQty}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                    <tr style={{ borderTop: "1px solid #cbd5e1", fontWeight: 700 }}>
-                                      <td style={{ paddingTop: "4px" }}>Total</td>
-                                      <td style={{ textAlign: "right", paddingTop: "4px", color: "#f97316" }}>{d.totalInHand}</td>
-                                      <td style={{ textAlign: "right", paddingTop: "4px" }}>{d.totalSystemInHand}</td>
-                                    </tr>
-                                  </tbody>
-                                </table>
-                              </Box>
-                            ) : (
-                              <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                                0 cylinders in hand
-                              </Typography>
-                            )}
-                          </TableCell>
+                            {/* Deliveries: Item-wise */}
+                            <TableCell sx={{ verticalAlign: isExpanded ? "top" : "middle" }}>
+                              {hasDeliveries ? (
+                                <Box>
+                                  <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mb={isExpanded ? 1.5 : 0}>
+                                    <Chip
+                                      label={`${d.totalDelivered ?? 0} Delivered`}
+                                      size="small"
+                                      onClick={() => toggleRow(d.id)}
+                                      sx={{
+                                        fontWeight: 700,
+                                        fontSize: "12px",
+                                        cursor: "pointer",
+                                        bgcolor: "#dbeafe",
+                                        color: "#1d4ed8",
+                                        border: "1px solid #93c5fd",
+                                        "&:hover": { bgcolor: "#bfdbfe" },
+                                      }}
+                                    />
+                                    <Button
+                                      size="small"
+                                      onClick={() => toggleRow(d.id)}
+                                      endIcon={isExpanded ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
+                                      sx={{
+                                        textTransform: "none",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        py: 0.2,
+                                        px: 1,
+                                        minWidth: "auto",
+                                        color: isExpanded ? "#2563eb" : "#475569",
+                                      }}
+                                    >
+                                      {isExpanded ? "Hide breakdown" : `View breakdown (${d.deliveries.length} items)`}
+                                    </Button>
+                                  </Box>
 
-                          {/* Status: Active / Inactive based on daily allocation */}
-                          <TableCell align="center">
-                            <Chip
-                              label={isActive ? "Active" : "Inactive"}
-                              size="medium"
-                              sx={{
-                                fontWeight: 700,
-                                px: 1.5,
-                                bgcolor: isActive ? "#dcfce7" : "#fee2e2",
-                                color: isActive ? "#15803d" : "#b91c1c",
-                                border: `1px solid ${isActive ? "#86efac" : "#fca5a5"}`,
-                              }}
-                            />
-                            <Typography variant="caption" display="block" color="text.secondary" mt={0.5}>
-                              {isActive ? "Allocated Today" : "No Allocation"}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                    <Box sx={{ bgcolor: "#ffffff", p: 1, borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                      <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                                        <thead>
+                                          <tr style={{ color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
+                                            <th style={{ textAlign: "left", paddingBottom: "4px" }}>Item Name</th>
+                                            <th style={{ textAlign: "right", paddingBottom: "4px" }}>Delivered</th>
+                                            <th style={{ textAlign: "right", paddingBottom: "4px" }}>System Updated</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {d.deliveries.map((item: any, idx: number) => (
+                                            <tr key={idx} style={{ borderBottom: "1px dashed #f1f5f9" }}>
+                                              <td style={{ padding: "4px 0", fontWeight: 500 }}>{item.itemName}</td>
+                                              <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600 }}>{item.deliveredQty}</td>
+                                              <td style={{ textAlign: "right", padding: "4px 0", color: "#16a34a", fontWeight: 600 }}>
+                                                {item.systemUpdatedQty}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                          <tr style={{ borderTop: "1px solid #cbd5e1", fontWeight: 700 }}>
+                                            <td style={{ paddingTop: "4px" }}>Total</td>
+                                            <td style={{ textAlign: "right", paddingTop: "4px" }}>{d.totalDelivered}</td>
+                                            <td style={{ textAlign: "right", paddingTop: "4px", color: "#16a34a" }}>{d.totalSystemUpdated}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </Box>
+                                  </Collapse>
+                                </Box>
+                              ) : (
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Chip
+                                    label="0 Delivered"
+                                    size="small"
+                                    sx={{
+                                      fontWeight: 600,
+                                      fontSize: "12px",
+                                      bgcolor: "#f1f5f9",
+                                      color: "#64748b",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  />
+                                  <Typography variant="body2" color="text.secondary" fontStyle="italic" fontSize="13px">
+                                    No deliveries yet for this period
+                                  </Typography>
+                                </Box>
+                              )}
+                            </TableCell>
+
+                            {/* In Hands: Item-wise */}
+                            <TableCell sx={{ verticalAlign: isExpanded ? "top" : "middle" }}>
+                              {hasInHands ? (
+                                <Box>
+                                  <Box display="flex" alignItems="center" flexWrap="wrap" gap={1} mb={isExpanded ? 1.5 : 0}>
+                                    <Chip
+                                      label={`${d.totalInHand ?? 0} In Hand`}
+                                      size="small"
+                                      onClick={() => toggleRow(d.id)}
+                                      sx={{
+                                        fontWeight: 700,
+                                        fontSize: "12px",
+                                        cursor: "pointer",
+                                        bgcolor: "#ffedd5",
+                                        color: "#c2410c",
+                                        border: "1px solid #fdba74",
+                                        "&:hover": { bgcolor: "#fed7aa" },
+                                      }}
+                                    />
+                                    <Button
+                                      size="small"
+                                      onClick={() => toggleRow(d.id)}
+                                      endIcon={isExpanded ? <KeyboardArrowUpIcon sx={{ fontSize: 16 }} /> : <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />}
+                                      sx={{
+                                        textTransform: "none",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        py: 0.2,
+                                        px: 1,
+                                        minWidth: "auto",
+                                        color: isExpanded ? "#c2410c" : "#475569",
+                                      }}
+                                    >
+                                      {isExpanded ? "Hide items" : `View items (${d.inHands.length})`}
+                                    </Button>
+                                  </Box>
+
+                                  <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                    <Box sx={{ bgcolor: "#ffffff", p: 1, borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                                      <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                                        <thead>
+                                          <tr style={{ color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>
+                                            <th style={{ textAlign: "left", paddingBottom: "4px" }}>Item Name</th>
+                                            <th style={{ textAlign: "right", paddingBottom: "4px" }}>In Hand</th>
+                                            <th style={{ textAlign: "right", paddingBottom: "4px" }}>System In Hand</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {d.inHands.map((item: any, idx: number) => (
+                                            <tr key={idx} style={{ borderBottom: "1px dashed #f1f5f9" }}>
+                                              <td style={{ padding: "4px 0", fontWeight: 500 }}>{item.itemName}</td>
+                                              <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600, color: "#f97316" }}>
+                                                {item.inHandQty}
+                                              </td>
+                                              <td style={{ textAlign: "right", padding: "4px 0", fontWeight: 600 }}>
+                                                {item.systemUpdatedQty}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                          <tr style={{ borderTop: "1px solid #cbd5e1", fontWeight: 700 }}>
+                                            <td style={{ paddingTop: "4px" }}>Total</td>
+                                            <td style={{ textAlign: "right", paddingTop: "4px", color: "#f97316" }}>{d.totalInHand}</td>
+                                            <td style={{ textAlign: "right", paddingTop: "4px" }}>{d.totalSystemInHand}</td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </Box>
+                                  </Collapse>
+                                </Box>
+                              ) : (
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Chip
+                                    label="0 In Hand"
+                                    size="small"
+                                    sx={{
+                                      fontWeight: 600,
+                                      fontSize: "12px",
+                                      bgcolor: "#f1f5f9",
+                                      color: "#64748b",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  />
+                                  <Typography variant="body2" color="text.secondary" fontStyle="italic" fontSize="13px">
+                                    0 cylinders in hand
+                                  </Typography>
+                                </Box>
+                              )}
+                            </TableCell>
+
+                            {/* Status: Active / Inactive based on daily allocation */}
+                            <TableCell align="center" sx={{ verticalAlign: isExpanded ? "top" : "middle" }}>
+                              <Chip
+                                label={isActive ? "Active" : "Inactive"}
+                                size="medium"
+                                sx={{
+                                  fontWeight: 700,
+                                  px: 1.5,
+                                  bgcolor: isActive ? "#dcfce7" : "#fee2e2",
+                                  color: isActive ? "#15803d" : "#b91c1c",
+                                  border: `1px solid ${isActive ? "#86efac" : "#fca5a5"}`,
+                                }}
+                              />
+                              <Typography variant="caption" display="block" color="text.secondary" mt={0.5}>
+                                {isActive ? "Allocated Today" : "No Allocation"}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </>
             )}
 
             {/* TAB 2: SEPARATE TAB – VEHICLE HISTORY & DOCUMENT EXPIRY TRACKING */}

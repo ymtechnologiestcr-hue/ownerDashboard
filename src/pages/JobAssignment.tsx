@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   FormControl,
   FormControlLabel,
   IconButton,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Paper,
@@ -24,8 +25,11 @@ import {
 import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  checkOwnerJobAssignmentEmailAvailability,
   createOwnerJobAssignmentUser,
   getOwnerJobAssignmentUsers,
   updateOwnerJobAssignmentUserStatus,
@@ -305,6 +309,75 @@ const JobAssignment: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<OwnerJobAssignmentUser | null>(null);
 
+  const [emailCheck, setEmailCheck] = useState<{
+    checking: boolean;
+    available: boolean | null;
+    message: string;
+    conflictType?: string;
+  }>({
+    checking: false,
+    available: null,
+    message: "",
+  });
+
+  useEffect(() => {
+    const trimmed = form.email.trim();
+    if (!openModal) return;
+
+    if (!trimmed) {
+      setEmailCheck({ checking: false, available: null, message: "" });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setEmailCheck({
+        checking: false,
+        available: false,
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
+    let active = true;
+    setEmailCheck((prev) => ({ ...prev, checking: true }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkOwnerJobAssignmentEmailAvailability(
+          trimmed,
+          form.role,
+          isEditMode && editingUserId ? editingUserId : undefined,
+        );
+        if (active) {
+          setEmailCheck({
+            checking: false,
+            available: res.data.available,
+            message: res.data.message || "",
+            conflictType: res.data.conflictType,
+          });
+        }
+      } catch (err: any) {
+        if (active) {
+          const errMsg =
+            err?.response?.data?.message ||
+            err?.message ||
+            "Failed to check email availability";
+          setEmailCheck({
+            checking: false,
+            available: false,
+            message: errMsg,
+          });
+        }
+      }
+    }, 400);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [form.email, form.role, openModal, isEditMode, editingUserId]);
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["owner-job-assignment-users"],
     queryFn: async () => {
@@ -403,6 +476,7 @@ const JobAssignment: React.FC = () => {
     });
     setEditingUserId(user.id);
     setIsEditMode(true);
+    setEmailCheck({ checking: false, available: true, message: "" });
     setOpenModal(true);
   };
 
@@ -415,6 +489,7 @@ const JobAssignment: React.FC = () => {
     setForm(initialForm);
     setIsEditMode(false);
     setEditingUserId(null);
+    setEmailCheck({ checking: false, available: null, message: "" });
     setOpenModal(true);
   };
 
@@ -422,7 +497,9 @@ const JobAssignment: React.FC = () => {
     if (
       !form.fullName.trim() ||
       !form.phoneNumber.trim() ||
-      !form.email.trim()
+      !form.email.trim() ||
+      emailCheck.checking ||
+      emailCheck.available === false
     ) {
       return;
     }
@@ -792,8 +869,41 @@ const JobAssignment: React.FC = () => {
               size="small"
               label="Email"
               required
+              type="email"
               value={form.email}
               onChange={(e) => updateForm("email", e.target.value)}
+              error={emailCheck.available === false}
+              helperText={
+                emailCheck.checking
+                  ? "Checking email availability..."
+                  : emailCheck.available === false
+                  ? emailCheck.message
+                  : emailCheck.available === true && form.email.trim()
+                  ? "✓ Email is available for this role"
+                  : ""
+              }
+              FormHelperTextProps={{
+                sx: {
+                  color:
+                    emailCheck.available === true
+                      ? "#16a34a !important"
+                      : undefined,
+                  fontWeight: emailCheck.available !== null ? 500 : undefined,
+                },
+              }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {emailCheck.checking ? (
+                      <CircularProgress size={18} />
+                    ) : emailCheck.available === true && form.email.trim() ? (
+                      <CheckCircleOutlineIcon sx={{ color: "#16a34a", fontSize: 20 }} />
+                    ) : emailCheck.available === false ? (
+                      <ErrorOutlineIcon sx={{ color: "#dc2626", fontSize: 20 }} />
+                    ) : null}
+                  </InputAdornment>
+                ),
+              }}
             />
 
             {createMutation.isError && (
@@ -824,7 +934,9 @@ const JobAssignment: React.FC = () => {
                   updateMutation.isPending ||
                   !form.fullName.trim() ||
                   !form.phoneNumber.trim() ||
-                  !form.email.trim()
+                  !form.email.trim() ||
+                  emailCheck.checking ||
+                  emailCheck.available === false
                 }
               >
                 {isEditMode
